@@ -12,21 +12,47 @@ Esta guía te ayudará a configurar la base de datos de Supabase y ejecutar las 
 
 ### 1. Instalar Supabase CLI
 
+⚠️ **Nota**: Supabase CLI ya no soporta instalación global con npm. Usa una de estas opciones:
+
+#### Opción A: Windows (Recomendado para tu caso)
 ```bash
-# Usando npm
-npm install -g supabase
+# Usando Chocolatey
+choco install supabase
 
-# Usando yarn
-yarn global add supabase
+# O usando Scoop
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
 
-# Usando bun
-bun add -g supabase
+#### Opción B: Usar npx (Sin instalación global)
+```bash
+# Usar directamente con npx
+npx supabase --help
+
+# Para todos los comandos, usar npx supabase en lugar de supabase
+npx supabase login
+npx supabase link --project-ref tu-project-id
+```
+
+#### Opción C: Descargar binario directamente
+1. Ve a [Releases de Supabase CLI](https://github.com/supabase/cli/releases)
+2. Descarga el binario para Windows
+3. Agrégalo a tu PATH
+
+#### Opción D: Usar Docker
+```bash
+# Crear alias para usar con Docker
+docker run --rm supabase/cli --help
 ```
 
 ### 2. Autenticarse en Supabase
 
 ```bash
+# Si instalaste con Chocolatey/Scoop
 supabase login
+
+# Si usas npx
+npx supabase login
 ```
 
 Esto abrirá tu navegador para autenticarte con tu cuenta de Supabase.
@@ -49,7 +75,12 @@ project_id = "zgikkbiqfhxdgrzwzmzw"
 
 ```bash
 cd frontend
+
+# Si instalaste con Chocolatey/Scoop
 supabase link --project-ref zgikkbiqfhxdgrzwzmzw
+
+# Si usas npx
+npx supabase link --project-ref zgikkbiqfhxdgrzwzmzw
 ```
 
 Si se te solicita la contraseña de la base de datos, puedes encontrarla en:
