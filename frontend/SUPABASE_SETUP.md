@@ -12,14 +12,12 @@ Esta guía te ayudará a configurar la base de datos de Supabase y ejecutar las 
 
 ### 1. Instalar Supabase CLI
 
-⚠️ **Nota**: Supabase CLI ya no soporta instalación global con npm. Usa una de estas opciones:
+⚠️ **Nota**: Usa una de estas opciones:
 
 #### Opción A: Windows (Recomendado para tu caso)
 ```bash
-# Usando Chocolatey
-choco install supabase
 
-# O usando Scoop
+# usando Scoop
 scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
 scoop install supabase
 ```
@@ -32,17 +30,6 @@ npx supabase --help
 # Para todos los comandos, usar npx supabase en lugar de supabase
 npx supabase login
 npx supabase link --project-ref tu-project-id
-```
-
-#### Opción C: Descargar binario directamente
-1. Ve a [Releases de Supabase CLI](https://github.com/supabase/cli/releases)
-2. Descarga el binario para Windows
-3. Agrégalo a tu PATH
-
-#### Opción D: Usar Docker
-```bash
-# Crear alias para usar con Docker
-docker run --rm supabase/cli --help
 ```
 
 ### 2. Autenticarse en Supabase
@@ -62,6 +49,14 @@ Esto abrirá tu navegador para autenticarte con tu cuenta de Supabase.
 Tu Project ID se encuentra en la URL de tu proyecto:
 - URL: `https://zgikkbiqfhxdgrzwzmzw.supabase.co`
 - Project ID: `zgikkbiqfhxdgrzwzmzw`
+
+## 3.1. Obtener tu Access token
+Tu Access token se encuentra en la URL de tu proyecto:
+- URL: `https://supabase.com/dashboard/account/tokens`
+
+![alt text](docs/attachments/supabase-account-preferences.png)
+
+![alt text](docs/attachments/supabase-access-token.png)
 
 ### 4. Configurar el archivo config.toml
 
