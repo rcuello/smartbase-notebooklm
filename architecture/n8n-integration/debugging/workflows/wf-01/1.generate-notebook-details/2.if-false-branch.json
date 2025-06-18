@@ -1,0 +1,33 @@
+[
+  {
+    "headers": {
+      "host": "n8n-batd.onrender.com",
+      "user-agent": "Deno/1.45.2 (variant; SupabaseEdgeRuntime/1.67.3)",
+      "content-length": "111",
+      "accept": "*/*",
+      "accept-encoding": "gzip, br",
+      "accept-language": "*",
+      "authorization": "PFWt0y8A3X7EEtUkysr8QEhqBAUW7BY9elMPfe7E3JqERGAiur",
+      "cdn-loop": "cloudflare; loops=1",
+      "cf-connecting-ip": "13.218.179.91",
+      "cf-ipcountry": "US",
+      "cf-ray": "951e208fbf5c8792-PDX",
+      "cf-visitor": "{\"scheme\":\"https\"}",
+      "content-type": "application/json",
+      "render-proxy-ttl": "4",
+      "rndr-id": "d5570ce1-d5d7-49a6",
+      "true-client-ip": "13.218.179.91",
+      "x-forwarded-for": "13.218.179.91, 104.23.160.88, 10.214.230.68",
+      "x-forwarded-proto": "https",
+      "x-request-start": "1750284736062868"
+    },
+    "params": {},
+    "query": {},
+    "body": {
+      "sourceType": "pdf",
+      "filePath": "9ea267a1-af47-48ca-85c6-f079afced649/cf4b9400-375f-4a6c-a4f5-77941a96be09.pdf"
+    },
+    "webhookUrl": "https://n8n-batd.onrender.com/webhook/0c488f50-8d6a-48a0-b056-5f7cfca9efe2",
+    "executionMode": "production"
+  }
+]

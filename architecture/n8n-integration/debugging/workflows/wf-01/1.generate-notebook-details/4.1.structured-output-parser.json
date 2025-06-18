@@ -1,0 +1,20 @@
+[
+  {
+    "action": "parse",
+    "response": {
+      "output": {
+        "title": "Política de Vacaciones 2025",
+        "summary": "Esta política establece las normas y procedimientos para la concesión de vacaciones a los empleados, garantizando un periodo adecuado de descanso para equilibrar vida laboral y personal. Cada empleado tiene derecho a 30 días naturales anuales, ajustados proporcionalmente según tiempo trabajado. Se detallan los procesos de solicitud, aprobación, acumulación y compensación de vacaciones, así como consideraciones especiales para períodos de alta demanda, antigüedad, y emergencias familiares. Además, se especifican las responsabilidades de empleados, supervisores y Recursos Humanos. La política entra en vigor el 1 de enero de 2025 y puede ser modificada con previo aviso.",
+        "notebook_icon": "🏖️",
+        "background_color": "blue",
+        "example_questions": [
+          "¿Cuántos días de vacaciones corresponden anualmente?",
+          "¿Cómo se solicita el periodo vacacional?",
+          "¿Qué pasa con las vacaciones no utilizadas?",
+          "¿Quién aprueba las solicitudes de vacaciones?",
+          "¿Qué beneficios reciben empleados con antigüedad?"
+        ]
+      }
+    }
+  }
+]
