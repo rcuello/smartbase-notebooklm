@@ -47,8 +47,8 @@ Esto abrirá tu navegador para autenticarte con tu cuenta de Supabase.
 ### 3. Obtener tu Project ID
 
 Tu Project ID se encuentra en la URL de tu proyecto:
-- URL: `https://zgikkbiqfhxdgrzwzmzw.supabase.co`
-- Project ID: `zgikkbiqfhxdgrzwzmzw`
+- URL: `https://wvyrhjslhcdydsyditbl.supabase.co`
+- Project ID: `wvyrhjslhcdydsyditbl`
 
 ## 3.1. Obtener tu Access token
 Tu Access token se encuentra en la URL de tu proyecto:
@@ -63,7 +63,7 @@ Tu Access token se encuentra en la URL de tu proyecto:
 Navega a `frontend/supabase/config.toml` y actualiza el `project_id`:
 
 ```toml
-project_id = "zgikkbiqfhxdgrzwzmzw"
+project_id = "wvyrhjslhcdydsyditbl"
 ```
 
 ### 5. Enlazar el proyecto local
@@ -72,32 +72,52 @@ project_id = "zgikkbiqfhxdgrzwzmzw"
 cd frontend
 
 # Si instalaste con Chocolatey/Scoop
-supabase link --project-ref zgikkbiqfhxdgrzwzmzw
+supabase link --project-ref wvyrhjslhcdydsyditbl
 
 # Si usas npx
-npx supabase link --project-ref zgikkbiqfhxdgrzwzmzw
+npx supabase link --project-ref wvyrhjslhcdydsyditbl
+
+# Para debuggear en caso de errores
+npx supabase link --project-ref wvyrhjslhcdydsyditbl --debug
 ```
 
 Si se te solicita la contraseña de la base de datos, puedes encontrarla en:
 - Supabase Dashboard → Settings → Database → Connection string
 
+
+![Ejecución del comando supabase link](docs/attachments/supabase-project-link.png)
+
+![Creación de carpeta .temp](docs/attachments/supabase-project-link-temp-folder.png)
+
 ## 🔄 Ejecutar Migraciones
 
 ### Opción 1: Aplicar migraciones (Recomendado)
 
+Ver las migraciones pendientes
 ```bash
 # Ver las migraciones pendientes
-supabase migration list
-
-# Aplicar todas las migraciones
-supabase db push
+npx supabase migration list
 ```
+
+![alt text](docs/attachments/supabase-migration-list.png)
+
+Ejecutar las migraciones pendientes
+
+```bash
+# Aplicar todas las migraciones
+npx supabase db push
+```
+![aceptar migración](docs/attachments/supabase-migration-Y.png)
+
+![migración exitosa](docs/attachments/supabase-migration-success.png)
+
+![revisar tablas en supabase](docs/attachments/supabase-dashboard-check-tables.png)
 
 ### Opción 2: Reset completo de la base de datos
 
 ```bash
 # ⚠️ CUIDADO: Esto borrará todos los datos existentes
-supabase db reset
+npx supabase db reset
 ```
 
 ### Opción 3: Ejecución manual desde Dashboard
@@ -109,6 +129,8 @@ Si prefieres ejecutar las migraciones manualmente:
 3. Abre el archivo `frontend/supabase/migrations/20250606152423_v0.1.sql`
 4. Copia todo el contenido
 5. Pégalo en el SQL Editor y ejecuta
+
+![query copiada](docs/attachments/supabase-copy-paste-sql-query.png)
 
 ## ✅ Verificar la Configuración
 
@@ -210,7 +232,7 @@ supabase functions deploy
 Después de configurar Supabase, asegúrate de tener estas variables en tu `.env`:
 
 ```env
-VITE_SUPABASE_URL=https://zgikkbiqfhxdgrzwzmzw.supabase.co
+VITE_SUPABASE_URL=https://wvyrhjslhcdydsyditbl.supabase.co
 VITE_SUPABASE_ANON_KEY=tu_anon_key_aqui
 ```
 
@@ -226,3 +248,5 @@ VITE_SUPABASE_ANON_KEY=tu_anon_key_aqui
 ---
 
 **¿Necesitas ayuda?** Consulta la [documentación oficial de Supabase](https://supabase.com/docs) o abre un issue en el repositorio.
+
+https://supabase.com/docs/reference/cli/supabase-init
