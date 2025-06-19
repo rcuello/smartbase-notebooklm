@@ -63,6 +63,7 @@ const AuthForm = () => {
     logger.info('Sign in attempt started', { email: data.email });
 
     try {
+      // login with Supabase
       const { error, data: authData } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
