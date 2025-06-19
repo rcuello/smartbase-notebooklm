@@ -14,7 +14,7 @@ Esto permitirá sustituir fácilmente Supabase por otros mecanismos de almacenam
 
 * **No expliques nada. Solo devuelve el código necesario.**
 * Refactoriza el código en `useNotebookUpdate.tsx` para **eliminar la dependencia directa de Supabase**.
-* Crea un servicio independiente o repositorio y reutilizable que encapsule la lógica actual de subida y descarga.
+* Crea un repositorio independiente y reutilizable que encapsule la lógica actual crear,editar,eliminar (donde aplique).
 * Aplica buenas prácticas, separación de responsabilidades y principios KISS.
 * **Es válido agregar comentarios en el código donde sea necesario** para mejorar su comprensión y mantenibilidad.
 * Usa nombres consistentes con el estilo del proyecto (`camelCase`, `PascalCase` donde corresponda).
@@ -36,10 +36,57 @@ Esto permitirá sustituir fácilmente Supabase por otros mecanismos de almacenam
 
 ### 🛠️ Estructura esperada
 
-1. **Nuevo servicio desacoplado** (por ejemplo `fileStorage.service.ts`)
-2. **Interfaz para el servicio** (por ejemplo `IFileStorageService`)
-3. **Refactor del hook `useFileUpload.tsx`** para usar el nuevo servicio
+1. **Nuevo repositorio y servicio desacoplado**
+2. **Interfaz para el repositorio y servicio**
+3. **Refactor del hook `useNotebookUpdate.tsx`** para usar el nuevo servicio
 ---
+
+## Contenido del archivo useNotebookUpdate.tsx
+
+```tsx  
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export const useNotebookUpdate = () => {
+  const queryClient = useQueryClient();
+
+  const updateNotebook = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { title?: string; description?: string } }) => {
+      console.log('Updating notebook wtf:', id, updates);
+      
+      const { data, error } = await supabase
+        .from('notebooks')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating notebook:', error);
+        throw error;
+      }
+      
+      console.log('Notebook updated successfully:', data);
+      return data;
+    },
+    onSuccess: (data) => {
+      console.log('Mutation success, invalidating queries');
+      queryClient.invalidateQueries({ queryKey: ['notebook', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['notebooks'] });
+    },
+    onError: (error) => {
+      console.error('Mutation error:', error);
+    },
+  });
+
+  return {
+    updateNotebook: updateNotebook.mutate,
+    isUpdating: updateNotebook.isPending,
+  };
+};
+
+```
 
 ### Estructura del proyecto:
 
@@ -286,3 +333,4 @@ smartbase-notebooklm/
 │   └── vite.config.ts
 └── README.md
 ```
+

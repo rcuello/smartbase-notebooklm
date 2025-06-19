@@ -7,7 +7,7 @@ export const useNotebookUpdate = () => {
 
   const updateNotebook = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: { title?: string; description?: string } }) => {
-      console.log('Updating notebook:', id, updates);
+      console.log('Updating notebook wtf:', id, updates);
       
       const { data, error } = await supabase
         .from('notebooks')
