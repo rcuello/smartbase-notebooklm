@@ -1,78 +1,110 @@
-
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotebookFactory } from '@/services/notebook.factory';
+import { NotebookCreateData } from '@/repositories/interfaces/notebook.repository.interface';
+import { logger } from '@/services/logger';
+import { useToast } from '@/hooks/use-toast';
+import { NotebookService } from '@/services/notebook.service';
 
-export const useNotebooks = () => {
+interface UseNotebooksOptions {
+  status?: 'pending' | 'processing' | 'completed' | 'error';
+  includeSources?: boolean;
+  limit?: number;
+  orderBy?: 'created_at' | 'updated_at' | 'title';
+  orderDirection?: 'asc' | 'desc';
+  enableRealtime?: boolean;
+}
+
+export const useNotebooks = (options: UseNotebooksOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  // Create service instance using factory pattern
+  //const notebookService = NotebookFactory.createNotebookService();
+  const notebookService: NotebookService = useMemo(() => {
+        return NotebookFactory.createNotebookService();
+      }, []);
+
+  // Default options
+  const {
+    status,
+    includeSources = true,
+    limit,
+    orderBy = 'updated_at',
+    orderDirection = 'desc',
+    enableRealtime = true,
+  } = options;
+
+  // Query key factory for better cache management
+  const getQueryKey = useCallback(() => [
+    'notebooks', 
+    user?.id, 
+    { status, includeSources, limit, orderBy, orderDirection }
+  ], [user?.id, status, includeSources, limit, orderBy, orderDirection]);
 
   const {
     data: notebooks = [],
     isLoading,
     error,
     isError,
+    refetch,
   } = useQuery({
-    queryKey: ['notebooks', user?.id],
+    queryKey: getQueryKey(),
     queryFn: async () => {
-      if (!user) {
-        console.log('No user found, returning empty notebooks array');
+      if (!user?.id) {
+        logger.info('No authenticated user, returning empty notebooks array');
         return [];
       }
       
-      console.log('Fetching notebooks for user:', user.id);
+      logger.info('Fetching notebooks for user wtf:', { 
+        userId: user.id, 
+        options: { status, includeSources, limit, orderBy, orderDirection }
+      });
       
-      // First get the notebooks
-      const { data: notebooksData, error: notebooksError } = await supabase
-        .from('notebooks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (notebooksError) {
-        console.error('Error fetching notebooks:', notebooksError);
-        throw notebooksError;
+      try {
+        return await notebookService.getUserNotebooks(user.id, {
+          status,
+          includeSources,
+          limit,
+          orderBy,
+          orderDirection,
+        });
+      } catch (error) {
+        logger.error('Failed to fetch notebooks:', error);
+        throw error;
       }
-
-      // Then get source counts separately for each notebook
-      const notebooksWithCounts = await Promise.all(
-        (notebooksData || []).map(async (notebook) => {
-          const { count, error: countError } = await supabase
-            .from('sources')
-            .select('*', { count: 'exact', head: true })
-            .eq('notebook_id', notebook.id);
-
-          if (countError) {
-            console.error('Error fetching source count for notebook:', notebook.id, countError);
-            return { ...notebook, sources: [{ count: 0 }] };
-          }
-
-          return { ...notebook, sources: [{ count: count || 0 }] };
-        })
-      );
-
-      console.log('Fetched notebooks:', notebooksWithCounts?.length || 0);
-      return notebooksWithCounts || [];
     },
-    enabled: isAuthenticated && !authLoading,
+    enabled: isAuthenticated && !authLoading && !!user?.id,
     retry: (failureCount, error) => {
-      // Don't retry on auth errors
-      if (error?.message?.includes('JWT') || error?.message?.includes('auth')) {
+      // Don't retry on auth errors or client errors
+      const errorMessage = error?.message?.toLowerCase() || '';
+      if (
+        errorMessage.includes('jwt') || 
+        errorMessage.includes('auth') ||
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('forbidden')
+      ) {
+        logger.warn('Auth error detected, not retrying:', error);
         return false;
       }
-      return failureCount < 3;
+      return failureCount < 2; // Reduced retry count
     },
+    staleTime: 30 * 1000, // 30 seconds
+    gcTime: 5 * 60 * 1000, // 5 minutes (formerly cacheTime)
   });
 
-  // Set up real-time subscription for notebooks updates
+  // Real-time subscription setup
   useEffect(() => {
-    if (!user?.id || !isAuthenticated) return;
+    if (!user?.id || !isAuthenticated || !enableRealtime) return;
 
-    console.log('Setting up real-time subscription for notebooks');
+    logger.info('Setting up real-time subscription for notebooks');
 
     const channel = supabase
-      .channel('notebooks-changes')
+      .channel(`notebooks-changes-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -82,64 +114,134 @@ export const useNotebooks = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('Real-time notebook update received:', payload);
+          logger.info('Real-time notebook update received:', { 
+            event: payload.eventType, 
+            //notebookId: payload.new?.id || payload.old?.id 
+          });
           
-          // Invalidate and refetch notebooks when any change occurs
-          queryClient.invalidateQueries({ queryKey: ['notebooks', user.id] });
+          // Invalidate queries to trigger refetch
+          queryClient.invalidateQueries({ 
+            queryKey: ['notebooks', user.id],
+            exact: false // Invalidate all variations of the query
+          });
+
+          // Show notification for certain events
+          if (payload.eventType === 'INSERT') {
+            toast({
+              title: "New notebook created",
+              description: `"${payload.new?.title}" has been added to your collection.`,
+            });
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          logger.info('Real-time subscription established');
+        } else if (status === 'CLOSED') {
+          logger.info('Real-time subscription closed');
+        } else if (status === 'CHANNEL_ERROR') {
+          logger.error('Real-time subscription error');
+        }
+      });
 
     return () => {
-      console.log('Cleaning up real-time subscription');
+      logger.info('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
-  }, [user?.id, isAuthenticated, queryClient]);
+  }, [user?.id, isAuthenticated, enableRealtime, queryClient, toast]);
 
   const createNotebook = useMutation({
-    mutationFn: async (notebookData: { title: string; description?: string }) => {
-      console.log('Creating notebook with data:', notebookData);
-      console.log('Current user:', user?.id);
-      
-      if (!user) {
-        console.error('User not authenticated');
+    mutationFn: async (notebookData: Omit<NotebookCreateData, 'user_id'>) => {
+      if (!user?.id) {
         throw new Error('User not authenticated');
       }
 
-      const { data, error } = await supabase
-        .from('notebooks')
-        .insert({
-          title: notebookData.title,
-          description: notebookData.description,
-          user_id: user.id,
-          generation_status: 'pending',
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating notebook:', error);
-        throw error;
-      }
+      logger.info('Creating notebook:', { 
+        title: notebookData.title, 
+        userId: user.id 
+      });
       
-      console.log('Notebook created successfully:', data);
-      return data;
+      const createData: NotebookCreateData = {
+        ...notebookData,
+        user_id: user.id,
+      };
+
+      return await notebookService.createNotebook(createData);
     },
     onSuccess: (data) => {
-      console.log('Mutation success, invalidating queries');
-      queryClient.invalidateQueries({ queryKey: ['notebooks', user?.id] });
+      logger.info('Notebook created successfully:', data.id);
+      
+      // Invalidate and refetch notebooks
+      queryClient.invalidateQueries({ 
+        queryKey: ['notebooks', user?.id],
+        exact: false
+      });
+
+      // Show success notification
+      toast({
+        title: "Notebook created",
+        description: `"${data.title}" has been created successfully.`,
+      });
     },
     onError: (error) => {
-      console.error('Mutation error:', error);
+      logger.error('Failed to create notebook:', error);
+      
+      // Show error notification
+      toast({
+        title: "Creation failed",
+        description: "Failed to create notebook. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
+  // Manual refresh function
+  const refreshNotebooks = useCallback(async () => {
+    logger.info('Manually refreshing notebooks');
+    try {
+      await refetch();
+    } catch (error) {
+      logger.error('Failed to refresh notebooks:', error);
+      toast({
+        title: "Refresh failed",
+        description: "Failed to refresh notebooks. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [refetch, toast]);
+
+  // Get notebook count
+  const getNotebookCount = useCallback(async (statusFilter?: 'pending' | 'processing' | 'completed' | 'error') => {
+    if (!user?.id) return 0;
+    
+    try {
+      return await notebookService.getUserNotebookCount(user.id, statusFilter);
+    } catch (error) {
+      logger.error('Failed to get notebook count:', error);
+      return 0;
+    }
+  }, [user?.id, notebookService]);
+
   return {
+    // Data
     notebooks,
+    
+    // Loading states
     isLoading: authLoading || isLoading,
+    isCreating: createNotebook.isPending,
+    
+    // Error states
     error: error?.message || null,
     isError,
+    createError: createNotebook.error,
+    
+    // Actions
     createNotebook: createNotebook.mutate,
-    isCreating: createNotebook.isPending,
+    createNotebookAsync: createNotebook.mutateAsync,
+    refreshNotebooks,
+    getNotebookCount,
+    
+    // Utils
+    refetch,
   };
 };
