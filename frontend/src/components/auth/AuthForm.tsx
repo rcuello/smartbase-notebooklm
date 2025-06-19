@@ -1,5 +1,7 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,82 +15,64 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 const logger = createComponentLogger('AuthForm');
 
+// Schema de validación con Zod
+const authSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email'),
+  password: z
+    .string()
+    .min(6, 'Password must be at least 6 characters')
+});
+
+type AuthFormData = z.infer<typeof authSchema>;
 
 const AuthForm = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    setError,
+    watch
+  } = useForm<AuthFormData>({
+    resolver: zodResolver(authSchema),
+    defaultValues: {
+      email: '',
+      password: ''
+    }
+  });
+
+  const email = watch('email');
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      //console.log('User is authenticated, redirecting to dashboard');
       logger.info('User already authenticated, redirecting', { email });
       navigate('/', { replace: true });
     }
   }, [isAuthenticated, navigate, email]);
 
-  // Limpiar errores cuando el usuario escribe
-  const clearError = (field: string) => {
-    if (errors[field as keyof typeof errors]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
-    }
-  };
-
-  // Validación simple
-  const validateForm = (): boolean => {
-    const newErrors: typeof errors = {};
-
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Please enter a valid email';
-    }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      logger.warn('Form validation failed');
-      return;
-    }
-    setLoading(true);
-    setErrors({}); // Reset errors on new submission
-
+  const onSubmit = async (data: AuthFormData) => {
     const startTime = Date.now();
-    logger.info('Sign in attempt started', { email });
+    logger.info('Sign in attempt started', { email: data.email });
 
     try {
-      //console.log('Attempting sign in for:', email);
-      
-      
-      
-      const { error, data } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const { error, data: authData } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
       });
 
       const duration = Date.now() - startTime;
       
-      
       if (error) {
         logger.error('Sign in failed', { 
-          email, 
+          email: data.email, 
           error: error.message, 
           duration 
         });
@@ -101,7 +85,12 @@ const AuthForm = () => {
           errorMessage = 'Please check your email and confirm your account';
         }
 
-        setErrors({ general: errorMessage });
+        // Usar setError de react-hook-form para errores del servidor
+        setError('root', { 
+          type: 'server', 
+          message: errorMessage 
+        });
+
         toast({
           title: "Sign In Error",
           description: errorMessage,
@@ -110,10 +99,9 @@ const AuthForm = () => {
         return;
       }
       
-      //console.log('Sign in successful:', data.user?.email);
       logger.info('Sign in successful', { 
-        email, 
-        userId: data.user?.id,
+        email: data.email, 
+        userId: authData.user?.id,
         duration 
       });
       
@@ -122,24 +110,24 @@ const AuthForm = () => {
         description: "You have successfully signed in.",
       });
 
-      // The AuthContext will handle the redirect automatically
-      
     } catch (error: any) {
       const duration = Date.now() - startTime;
       logger.error('Unexpected sign in error', { 
-        email, 
+        email: data.email, 
         error: error instanceof Error ? error.message : 'Unknown error',
         duration 
       });
 
-      setErrors({ general: 'An unexpected error occurred. Please try again.' });
+      setError('root', { 
+        type: 'server', 
+        message: 'An unexpected error occurred. Please try again.' 
+      });
+
       toast({
         title: "Error",
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -152,7 +140,7 @@ const AuthForm = () => {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
           {/* Email */}
           <div className="space-y-2">
@@ -160,19 +148,13 @@ const AuthForm = () => {
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => {
-                  setEmail(e.target.value);
-                  clearError('email');
-                }
-              }
-              required
+              {...register('email')}
               placeholder="Enter your email"
-              disabled={loading}
+              disabled={isSubmitting}
               className={errors.email ? "border-red-500" : ""}
             />
             {errors.email && (
-              <p className="text-sm text-red-600">{errors.email}</p>
+              <p className="text-sm text-red-600">{errors.email.message}</p>
             )}
           </div>
 
@@ -183,14 +165,9 @@ const AuthForm = () => {
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  clearError('password');
-                }}
-                required
+                {...register('password')}
                 placeholder="Enter your password"
-                disabled={loading}
+                disabled={isSubmitting}
                 className={`pr-10 ${errors.password ? "border-red-500" : ""}`}
               />
               <Button
@@ -199,19 +176,26 @@ const AuthForm = () => {
                 size="sm"
                 className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                 onClick={() => setShowPassword(!showPassword)}
-                disabled={loading}
+                disabled={isSubmitting}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </Button>
             </div>
             {errors.password && (
-              <p className="text-sm text-red-600">{errors.password}</p>
+              <p className="text-sm text-red-600">{errors.password.message}</p>
             )}
           </div>
 
+          {/* Error general del servidor */}
+          {errors.root && (
+            <div className="text-sm text-red-600 text-center">
+              {errors.root.message}
+            </div>
+          )}
+
           {/* Submit */}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Signing In...
