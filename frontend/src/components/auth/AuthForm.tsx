@@ -8,47 +8,114 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { createComponentLogger } from '@/services/logger';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+
+const logger = createComponentLogger('AuthForm');
+
 
 const AuthForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
 
   // Redirect to dashboard if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      console.log('User is authenticated, redirecting to dashboard');
+      //console.log('User is authenticated, redirecting to dashboard');
+      logger.info('User already authenticated, redirecting', { email });
       navigate('/', { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, email]);
+
+  // Limpiar errores cuando el usuario escribe
+  const clearError = (field: string) => {
+    if (errors[field as keyof typeof errors]) {
+      setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  // Validación simple
+  const validateForm = (): boolean => {
+    const newErrors: typeof errors = {};
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = 'Please enter a valid email';
+    }
+
+    if (!password) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      logger.warn('Form validation failed');
+      return;
+    }
     setLoading(true);
+    setErrors({}); // Reset errors on new submission
+
+    const startTime = Date.now();
+    logger.info('Sign in attempt started', { email });
 
     try {
-      console.log('Attempting sign in for:', email);
+      //console.log('Attempting sign in for:', email);
+      
+      
       
       const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      const duration = Date.now() - startTime;
+      
       
       if (error) {
-        console.error('Sign in error:', error);
+        logger.error('Sign in failed', { 
+          email, 
+          error: error.message, 
+          duration 
+        });
+
+        let errorMessage = 'Sign in failed. Please try again.';
+        
         if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Invalid email or password. Please check your credentials and try again.');
+          errorMessage = 'Invalid email or password';
         } else if (error.message.includes('Email not confirmed')) {
-          throw new Error('Please check your email and click the confirmation link before signing in.');
-        } else {
-          throw error;
+          errorMessage = 'Please check your email and confirm your account';
         }
+
+        setErrors({ general: errorMessage });
+        toast({
+          title: "Sign In Error",
+          description: errorMessage,
+          variant: "destructive",
+        });
+        return;
       }
       
-      console.log('Sign in successful:', data.user?.email);
+      //console.log('Sign in successful:', data.user?.email);
+      logger.info('Sign in successful', { 
+        email, 
+        userId: data.user?.id,
+        duration 
+      });
       
       toast({
         title: "Welcome back!",
@@ -58,10 +125,17 @@ const AuthForm = () => {
       // The AuthContext will handle the redirect automatically
       
     } catch (error: any) {
-      console.error('Auth form error:', error);
+      const duration = Date.now() - startTime;
+      logger.error('Unexpected sign in error', { 
+        email, 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        duration 
+      });
+
+      setErrors({ general: 'An unexpected error occurred. Please try again.' });
       toast({
-        title: "Sign In Error",
-        description: error.message,
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -79,31 +153,72 @@ const AuthForm = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearError('email');
+                }
+              }
               required
               placeholder="Enter your email"
+              disabled={loading}
+              className={errors.email ? "border-red-500" : ""}
             />
+            {errors.email && (
+              <p className="text-sm text-red-600">{errors.email}</p>
+            )}
           </div>
+
+          {/* Password */}
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-              minLength={6}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  clearError('password');
+                }}
+                required
+                placeholder="Enter your password"
+                disabled={loading}
+                className={`pr-10 ${errors.password ? "border-red-500" : ""}`}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </Button>
+            </div>
+            {errors.password && (
+              <p className="text-sm text-red-600">{errors.password}</p>
+            )}
           </div>
+
+          {/* Submit */}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Signing In...
+              </>
+            ) : (
+              'Sign In'
+            )}
           </Button>
         </form>
       </CardContent>
