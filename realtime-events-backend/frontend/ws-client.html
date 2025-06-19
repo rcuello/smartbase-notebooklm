@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Realtime WS Client</title>
+</head>
+<body>
+  <h1>📡 Realtime WebSocket Client</h1>
+  <ul id="events"></ul>
+
+  <script>
+    const socket = new WebSocket('ws://localhost:4001');
+
+    socket.addEventListener('open', () => {
+      console.log('✅ Connected to WebSocket server');
+    });
+
+    socket.addEventListener('message', (event) => {
+      console.log('📨 Message from server:', event.data);
+
+      const list = document.getElementById('events');
+      const item = document.createElement('li');
+      item.textContent = event.data;
+      list.appendChild(item);
+    });
+
+    socket.addEventListener('close', () => {
+      console.log('❌ WebSocket disconnected');
+    });
+
+    socket.addEventListener('error', (error) => {
+      console.error('⚠️ WebSocket error:', error);
+    });
+  </script>
+</body>
+</html>
