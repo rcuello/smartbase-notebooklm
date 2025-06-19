@@ -1,20 +1,32 @@
+import React, { 
+  createContext, 
+  useContext, 
+  useEffect, 
+  useState, 
+  ReactNode, 
+  useCallback,
+  useMemo 
+} from 'react';
+import { getAuthService } from '@/services/auth.factory';
+import type { AuthSession, AuthError } from '@/types/auth';
+import { createComponentLogger } from '@/services/logger';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+const logger = createComponentLogger('AuthContext');
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthSession['user'] | null;
+  session: AuthSession | null;
   loading: boolean;
-  error: string | null;
+  error: AuthError | null;
   isAuthenticated: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
@@ -26,161 +38,244 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthError | null>(null);
+  
+  // Initialize auth service once
+  // This ensures we don't create a new instance on every render
+  const authService = useMemo(() => getAuthService(), []);
 
-  const updateAuthState = (newSession: Session | null) => {
-    console.log('AuthContext: Updating auth state:', newSession?.user?.email || 'No session');
+  const updateAuthState = useCallback((newSession: AuthSession | null) => {
+    logger.info('Updating auth state', { 
+      hasSession: !!newSession, 
+      userEmail: newSession?.user?.email,
+      //sessionId: newSession?.access_token ? 'present' : 'absent'
+    });
+    
     setSession(newSession);
-    setUser(newSession?.user ?? null);
     
     // Clear any previous errors on successful auth
     if (newSession && error) {
       setError(null);
     }
-  };
+  }, [error]);
 
-  const clearAuthState = () => {
-    console.log('AuthContext: Clearing auth state');
+  const clearAuthState = useCallback(() => {
+    logger.info('Clearing auth state');
     setSession(null);
-    setUser(null);
     setError(null);
-  };
+  }, []);
 
-  const signOut = async () => {
+  const handleAuthError = useCallback((authError: AuthError, context: string) => {
+    logger.error(`Auth error in ${context}`, { 
+      code: authError.code, 
+      message: authError.message 
+    });
+    setError(authError);
+  }, []);
+
+  const signOut = useCallback(async (): Promise<void> => {
+    const startTime = Date.now();
+    logger.info('Starting sign out process');
+
     try {
-      console.log('AuthContext: Starting logout process...');
-      
-      // Clear local state immediately to provide instant feedback
+      // Clear local state immediately for better UX
       clearAuthState();
-      
-      // Attempt to sign out from server
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.log('AuthContext: Logout error:', error);
-        
-        // If session is invalid on server, we've already cleared local state
-        if (error.message.includes('session_not_found') || 
-            error.message.includes('Session not found') ||
-            error.status === 403) {
-          console.log('AuthContext: Session already invalid on server');
-          return;
-        }
-        
-        // For other errors, still ensure local session is cleared
-        await supabase.auth.signOut({ scope: 'local' });
-        return;
-      }
-      
-      console.log('AuthContext: Logout successful');
-    } catch (err) {
-      console.error('AuthContext: Unexpected logout error:', err);
-      
-      // Even if there's an error, try to clear local session
-      try {
-        await supabase.auth.signOut({ scope: 'local' });
-      } catch (localError) {
-        console.error('AuthContext: Failed to clear local session:', localError);
-      }
-    }
-  };
+      setLoading(true);
 
+      const result = await authService.signOut();
+      const duration = Date.now() - startTime;
+
+      if (result.error) {
+        logger.warn('Sign out completed with warnings', { 
+          error: result.error,
+          duration 
+        });
+        
+        // Even with errors, we've cleared local state
+        // Don't show error to user unless it's critical
+        if (result.error.code !== 'SESSION_ALREADY_INVALID') {
+          handleAuthError(result.error, 'signOut');
+        }
+      } else {
+        logger.info('Sign out completed successfully', { duration });
+      }
+    } catch (err) {
+      const duration = Date.now() - startTime;
+      const unexpectedError: AuthError = {
+        code: 'UNEXPECTED_ERROR',
+        message: err instanceof Error ? err.message : 'Unknown error during sign out'
+      };
+      
+      logger.error('Unexpected error during sign out', { 
+        error: unexpectedError,
+        duration 
+      });
+      handleAuthError(unexpectedError, 'signOut');
+    } finally {
+      setLoading(false);
+    }
+  }, [authService, clearAuthState, handleAuthError]);
+
+  const refreshSession = useCallback(async (): Promise<void> => {
+    const startTime = Date.now();
+    logger.info('Starting session refresh');
+
+    try {
+      setLoading(true);
+      const result = await authService.refreshSession();
+      const duration = Date.now() - startTime;
+
+      if (result.error) {
+        logger.error('Session refresh failed', { 
+          error: result.error,
+          duration 
+        });
+        handleAuthError(result.error, 'refreshSession');
+        
+        // If refresh fails, clear the session
+        clearAuthState();
+      } else if (result.data) {
+        logger.info('Session refreshed successfully', { 
+          userEmail: result.data.user?.email,
+          duration 
+        });
+        updateAuthState(result.data);
+      }
+    } catch (err) {
+      const duration = Date.now() - startTime;
+      const unexpectedError: AuthError = {
+        code: 'UNEXPECTED_ERROR',
+        message: err instanceof Error ? err.message : 'Unknown error during session refresh'
+      };
+      
+      logger.error('Unexpected error during session refresh', { 
+        error: unexpectedError,
+        duration 
+      });
+      handleAuthError(unexpectedError, 'refreshSession');
+      clearAuthState();
+    } finally {
+      setLoading(false);
+    }
+  }, [authService, updateAuthState, clearAuthState, handleAuthError]);
+
+  const clearError = useCallback(() => {
+    logger.debug('Clearing auth error');
+    setError(null);
+  }, []);
+
+  // Initialize auth state and set up listeners
   useEffect(() => {
     let mounted = true;
-
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        if (!mounted) return;
-        
-        console.log('AuthContext: Auth state changed:', event, newSession?.user?.email || 'No session');
-        
-        // Handle sign out events
-        if (event === 'SIGNED_OUT') {
-          clearAuthState();
-          setLoading(false);
-          return;
-        }
-        
-        // Handle sign in events
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          updateAuthState(newSession);
-          setLoading(false);
-          return;
-        }
-        
-        // For other events, update state if there's an actual change
-        if (session?.access_token !== newSession?.access_token) {
-          updateAuthState(newSession);
-          if (loading) setLoading(false);
-        }
-      }
-    );
+    let unsubscribe: (() => void) | null = null;
 
     const initializeAuth = async () => {
+      const startTime = Date.now();
+      logger.info('Initializing auth context');
+
       try {
-        console.log('AuthContext: Initializing auth...');
-        
-        // Get initial session
-        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
-        
-        if (sessionError) {
-          console.error('AuthContext: Error getting initial session:', sessionError);
+        // Set up auth state change listener first
+        unsubscribe = authService.onAuthStateChange((newSession) => {
+          if (!mounted) return;
           
-          // If the session is invalid, clear local state
-          if (sessionError.message.includes('session_not_found') || 
-              sessionError.message.includes('Session not found')) {
-            console.log('AuthContext: Session not found on server, clearing local session');
-            await supabase.auth.signOut({ scope: 'local' });
-            if (mounted) {
-              clearAuthState();
-              setLoading(false);
-            }
-            return;
-          }
+          logger.debug('Auth state change detected', { 
+            hasSession: !!newSession,
+            userEmail: newSession?.user?.email 
+          });
           
-          if (mounted) {
-            setError(sessionError.message);
+          const wasLoading = loading;
+          updateAuthState(newSession);
+          
+          // Only set loading to false if we were loading
+          if (wasLoading) {
             setLoading(false);
           }
-          return;
-        }
-        
-        if (mounted) {
-          console.log('AuthContext: Initial session:', initialSession?.user?.email || 'No session');
-          updateAuthState(initialSession);
-          setLoading(false);
+        });
+
+        // Get initial session
+        const result = await authService.getCurrentSession();
+        const duration = Date.now() - startTime;
+
+        if (!mounted) return;
+
+        if (result.error) {
+          logger.error('Failed to get initial session', { 
+            error: result.error,
+            duration 
+          });
+          handleAuthError(result.error, 'initialization');
+        } else {
+          logger.info('Auth initialization completed', { 
+            hasSession: !!result.data,
+            userEmail: result.data?.user?.email,
+            duration 
+          });
+          updateAuthState(result.data || null);
         }
       } catch (err) {
-        console.error('AuthContext: Auth initialization error:', err);
+        const duration = Date.now() - startTime;
+        const unexpectedError: AuthError = {
+          code: 'UNEXPECTED_ERROR',
+          message: err instanceof Error ? err.message : 'Unknown error during auth initialization'
+        };
+        
+        logger.error('Unexpected error during auth initialization', { 
+          error: unexpectedError,
+          duration 
+        });
+        
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Authentication error');
+          handleAuthError(unexpectedError, 'initialization');
+        }
+      } finally {
+        if (mounted) {
           setLoading(false);
         }
       }
     };
 
-    // Initialize auth state after setting up listener
     initializeAuth();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      if (unsubscribe) {
+        logger.debug('Cleaning up auth state listener');
+        unsubscribe();
+      }
     };
-  }, []); // Empty dependency array to run only once
+  }, [authService, updateAuthState, handleAuthError, loading]);
 
-  const value: AuthContextType = {
+  // Computed values
+  const user = useMemo(() => session?.user || null, [session]);
+  const isAuthenticated = useMemo(() => !!user && !!session, [user, session]);
+
+  // Context value with memoization to prevent unnecessary re-renders
+  const value = useMemo<AuthContextType>(() => ({
     user,
     session,
     loading,
     error,
-    isAuthenticated: !!user && !!session,
+    isAuthenticated,
     signOut,
-  };
+    refreshSession,
+    clearError,
+  }), [
+    user,
+    session,
+    loading,
+    error,
+    isAuthenticated,
+    signOut,
+    refreshSession,
+    clearError,
+  ]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
