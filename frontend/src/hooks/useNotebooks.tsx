@@ -116,7 +116,7 @@ export const useNotebooks = (options: UseNotebooksOptions = {}) => {
         (payload) => {
           logger.info('Real-time notebook update received:', { 
             event: payload.eventType, 
-            //notebookId: payload.new?.id || payload.old?.id 
+            //payload: payload.new?.id || payload.old?.id 
           });
           
           // Invalidate queries to trigger refetch

@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  realtime-backend:
+    container_name: realtime-backend
+    build: .
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - rabbitmq
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"     # RabbitMQ AMQP
+      - "15672:15672"   # RabbitMQ Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
