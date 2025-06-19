@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 interface LogoProps {
@@ -9,26 +8,32 @@ interface LogoProps {
 const Logo = ({ size = 'md', className = '' }: LogoProps) => {
   const sizeClasses = {
     sm: 'w-6 h-6',
-    md: 'w-8 h-8', 
-    lg: 'w-12 h-12'
+    md: 'w-8 h-8',
+    lg: 'w-12 h-12',
   };
 
   const iconSizes = {
-    sm: '16px',
-    md: '20px',
-    lg: '28px'
+    sm: 16,
+    md: 20,
+    lg: 28,
   };
 
   return (
-    <div className={`${sizeClasses[size]} bg-black rounded-full flex items-center justify-center ${className}`}>
-      <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        height={iconSizes[size]} 
-        viewBox="0 -960 960 960" 
-        width={iconSizes[size]} 
-        fill="#FFFFFF"
+    <div
+      className={`${sizeClasses[size]} bg-black rounded-full flex items-center justify-center ${className}`}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={iconSizes[size]}
+        height={iconSizes[size]}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="white"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       >
-        <path d="M480-80q-33 0-56.5-23.5T400-160h160q0 33-23.5 56.5T480-80ZM320-200v-80h320v80H320Zm10-120q-69-41-109.5-110T180-580q0-125 87.5-212.5T480-880q125 0 212.5 87.5T780-580q0 81-40.5 150T630-320H330Zm24-80h252q45-32 69.5-79T700-580q0-92-64-156t-156-64q-92 0-156 64t-64 156q0 54 24.5 101t69.5 79Zm126 0Z" />
+        <path d="M12 8V4H8 M 6.0 8.0 H 18.0 A 2.0 2.0 0 0 1 20.0 10.0 V 18.0 A 2.0 2.0 0 0 1 18.0 20.0 H 6.0 A 2.0 2.0 0 0 1 4.0 18.0 V 10.0 A 2.0 2.0 0 0 1 6.0 8.0 Z M2 14h2 M20 14h2 M15 13v2 M9 13v2" />
       </svg>
     </div>
   );

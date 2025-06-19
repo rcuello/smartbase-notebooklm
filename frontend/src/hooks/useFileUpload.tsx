@@ -1,63 +1,81 @@
+import { useCallback, useMemo, useState } from 'react';
 
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/services/logger';
+import { FileStorageFactory } from '@/services/fileStorage.factory';
+import { IFileStorageService } from '@/services/interfaces/fileStorage.interface';
 
-export const useFileUpload = () => {
+interface FileUploadResponse {
+  url: string;
+  path: string;
+}
+
+interface UseFileUploadReturn {
+  uploadFile: (file: File, notebookId: string, sourceId: string) => Promise<string>;
+  generateSignedUrl: (path: string, expiresIn?: number) => Promise<string>;
+  deleteFile: (path: string) => Promise<void>;
+  isUploading: boolean;
+}
+
+export const useFileUpload = (): UseFileUploadReturn => {
   const [isUploading, setIsUploading] = useState(false);
-  const { toast } = useToast();
 
-  const uploadFile = async (file: File, notebookId: string, sourceId: string): Promise<string | null> => {
+  const fileStorageService: IFileStorageService = useMemo(() => {
+    return FileStorageFactory.createFileStorageService();
+  }, []);
+
+  const uploadFile = useCallback(async (file: File, notebookId: string, sourceId: string): Promise<string> => {
+    setIsUploading(true);
+    
     try {
-      setIsUploading(true);
+      logger.info('Starting file upload', { fileName: file.name, fileSize: file.size, notebookId, sourceId });
       
-      // Get file extension
-      const fileExtension = file.name.split('.').pop() || 'bin';
+      const filePath = `${notebookId}/${sourceId}/${file.name}`;
+      const result = await fileStorageService.uploadFile(file, filePath);
       
-      // Create file path: sources/{notebook_id}/{source_id}.{extension}
-      const filePath = `${notebookId}/${sourceId}.${fileExtension}`;
+      logger.info('File upload completed', { fileName: file.name, path: result.path });
       
-      console.log('Uploading file to:', filePath);
-      
-      // Upload file to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('sources')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        console.error('Upload error:', error);
-        throw error;
-      }
-
-      console.log('File uploaded successfully:', data);
-      return filePath;
+      return result.path;
     } catch (error) {
-      console.error('File upload failed:', error);
-      toast({
-        title: "Upload Error",
-        description: `Failed to upload ${file.name}. Please try again.`,
-        variant: "destructive",
-      });
-      return null;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      logger.error('File upload failed', { error: errorMessage, fileName: file.name });
+      
+      throw error;
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [fileStorageService]);
 
-  const getFileUrl = (filePath: string): string => {
-    const { data } = supabase.storage
-      .from('sources')
-      .getPublicUrl(filePath);
-    
-    return data.publicUrl;
-  };
+  const generateSignedUrl = useCallback(async (path: string, expiresIn?: number): Promise<string> => {
+    try {
+      return await fileStorageService.generateSignedUrl(path, expiresIn);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      logger.error('Failed to generate signed URL', { error: errorMessage, path });
+      
+      throw error;
+    }
+  }, [fileStorageService]);
+
+  const deleteFile = useCallback(async (path: string): Promise<void> => {
+    try {
+      await fileStorageService.deleteFile(path);
+      
+      logger.info('File deleted successfully', { path });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      logger.error('Failed to delete file', { error: errorMessage, path });
+      
+      throw error;
+    }
+  }, [fileStorageService]);
 
   return {
     uploadFile,
-    getFileUrl,
-    isUploading,
+    generateSignedUrl,
+    deleteFile,
+    isUploading
   };
 };
