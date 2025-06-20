@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
-import { IFileStorageService } from '@/services/interfaces/fileStorage.interface';
+import { IFileStorageService } from '@/services/interfaces/file-storage.interface';
 
 /**
  * Implementación del servicio de almacenamiento de archivos usando Supabase Storage

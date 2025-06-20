@@ -5,7 +5,7 @@ import {
   CreateSourceData,
   UpdateSourceData,
 } from '@/repositories/interfaces/source.repository.interface';
-import { IFileStorageService } from './interfaces/fileStorage.interface';
+import { IFileStorageService } from './interfaces/file-storage.interface';
 
 /**
  * Servicio de fuentes que encapsula la lógica de negocio

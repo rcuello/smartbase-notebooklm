@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 
 import { logger } from '@/services/logger';
-import { FileStorageFactory } from '@/services/fileStorage.factory';
-import { IFileStorageService } from '@/services/interfaces/fileStorage.interface';
+import { FileStorageFactory } from '@/services/file-storage.factory';
+import { IFileStorageService } from '@/services/interfaces/file-storage.interface';
 
 interface FileUploadResponse {
   url: string;

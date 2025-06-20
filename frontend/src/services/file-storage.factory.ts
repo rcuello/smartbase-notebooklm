@@ -1,4 +1,4 @@
-import { IFileStorageService } from '@/services/interfaces/fileStorage.interface';
+import { IFileStorageService } from '@/services/interfaces/file-storage.interface';
 import { SupabaseFileStorageService } from '@/services/supabase-file-storage.service';
 
 export class FileStorageFactory {
