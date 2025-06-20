@@ -1,40 +1,36 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { NoteFactory } from '@/services/note.factory';
+//import { NoteData } from '@/repositories/supabase-note.repository';
+import { NoteService } from '@/services/note.service';
+import { NoteData } from '@/repositories/interfaces/note.repository.interface';
 
-export interface Note {
-  id: string;
-  notebook_id: string;
-  title: string;
-  content: string;
-  source_type: 'user' | 'ai_response';
-  extracted_text?: string;
-  created_at: string;
-  updated_at: string;
-}
-
+/**
+ * Hook personalizado para la gestión de notas
+ * Utiliza el patrón de inyección de dependencias a través del factory
+ */
 export const useNotes = (notebookId?: string) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Instancia del servicio de notas creada mediante factory 
+  const noteService: NoteService = useMemo(() => {
+      return NoteFactory.createNoteService();
+    }, []);
 
+  /**
+   * Query para obtener las notas de un notebook
+   */
   const { data: notes, isLoading } = useQuery({
     queryKey: ['notes', notebookId],
-    queryFn: async () => {
-      if (!notebookId) return [];
-      
-      const { data, error } = await supabase
-        .from('notes')
-        .select('*')
-        .eq('notebook_id', notebookId)
-        .order('updated_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as Note[];
-    },
+    queryFn: () => noteService.getNotesByNotebook(notebookId!),
     enabled: !!notebookId && !!user,
   });
 
+  /**
+   * Mutación para crear una nueva nota
+   */
   const createNoteMutation = useMutation({
     mutationFn: async ({ 
       title, 
@@ -47,53 +43,37 @@ export const useNotes = (notebookId?: string) => {
       source_type?: 'user' | 'ai_response';
       extracted_text?: string;
     }) => {
-      if (!notebookId) throw new Error('Notebook ID is required');
-      
-      const { data, error } = await supabase
-        .from('notes')
-        .insert([{
-          notebook_id: notebookId,
-          title,
-          content,
-          source_type,
-          extracted_text,
-        }])
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return noteService.createNote({
+        notebookId: notebookId!,
+        title,
+        content,
+        source_type,
+        extracted_text,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', notebookId] });
     },
   });
 
+  /**
+   * Mutación para actualizar una nota existente
+   */
   const updateNoteMutation = useMutation({
     mutationFn: async ({ id, title, content }: { id: string; title: string; content: string }) => {
-      const { data, error } = await supabase
-        .from('notes')
-        .update({ title, content, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      return noteService.updateNote({ id, title, content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', notebookId] });
     },
   });
 
+  /**
+   * Mutación para eliminar una nota
+   */
   const deleteNoteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      return noteService.deleteNote(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', notebookId] });
@@ -111,3 +91,9 @@ export const useNotes = (notebookId?: string) => {
     isDeleting: deleteNoteMutation.isPending,
   };
 };
+
+// Re-exportamos el tipo NoteData para mantener compatibilidad
+export type { NoteData };
+
+// Alias para compatibilidad hacia atrás
+export type Note = NoteData;

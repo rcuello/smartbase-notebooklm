@@ -15,6 +15,9 @@ export interface NotebookData {
   id: string;
   title: string;
   description: string;
+  audio_overview_url?: string;
+  audio_url_expires_at?: string;
+  audio_overview_generation_status?: 'pending' | 'processing' | 'completed' | 'error';
   created_at: string;
   updated_at: string;
   user_id: string;
