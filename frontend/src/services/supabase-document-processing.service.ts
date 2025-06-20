@@ -12,7 +12,7 @@ export class SupabaseDocumentProcessingService implements IDocumentProcessingSer
     
     logger.info('Initiating document processing', { sourceId, filePath, sourceType });
 
-    const { data, error } = await supabase.functions.invoke('process-document', {
+    const { data, error } = await supabase.functions.invoke('process-document-2', {
       body: {
         sourceId,
         filePath,

@@ -112,6 +112,11 @@ const callWebhookService = async (
 
     if (!response.ok) {
       const errorText = await response.text()
+      console.error('Webhook error response:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      })
       return {
         success: false,
         error: `Webhook call failed with status ${response.status}: ${errorText}`
@@ -119,11 +124,13 @@ const callWebhookService = async (
     }
 
     const result = await response.json()
+    console.log('Webhook success response:', result)
     return {
       success: true,
       result
     }
   } catch (error) {
+    console.error('Webhook call exception:', error)
     return {
       success: false,
       error: `Webhook call failed: ${error.message}`
