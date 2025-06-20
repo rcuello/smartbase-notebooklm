@@ -5,13 +5,19 @@ import {
   SourceData,
   CreateSourceData,
   UpdateSourceData,
-} from './interfaces/source.repository.interface';
+} from '@/repositories/interfaces/source.repository.interface';
+import { SourceChangeHandler, SourceRealtimeSubscriptionManager } from '@/services/realtime/source.realtime.manager';
 
 /**
  * Implementación del repositorio de fuentes usando Supabase
  * Encapsula toda la lógica específica de Supabase para operaciones con fuentes
  */
 export class SupabaseSourceRepository implements SourceRepositoryInterface {
+  private realtimeManager: SourceRealtimeSubscriptionManager;
+  constructor() {
+    this.realtimeManager = new SourceRealtimeSubscriptionManager();
+  }
+
   /**
    * Obtiene una fuente específica por su ID
    */
@@ -126,10 +132,7 @@ export class SupabaseSourceRepository implements SourceRepositoryInterface {
    */
   async deleteSource(sourceId: string): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('sources')
-        .delete()
-        .eq('id', sourceId);
+      const { error } = await supabase.from('sources').delete().eq('id', sourceId);
 
       if (error) {
         logger.error('Error deleting source:', error);
@@ -164,16 +167,16 @@ export class SupabaseSourceRepository implements SourceRepositoryInterface {
         },
         (payload: any) => {
           logger.info('Realtime: Sources change received:', payload);
-          
+
           const eventType = payload.eventType;
           const sourceData = payload.new || payload.old;
-          
+
           if (sourceData) {
             onSourceChange(eventType, sourceData);
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe(status => {
         logger.info('Realtime subscription status for sources:', status);
       });
 
@@ -182,5 +185,15 @@ export class SupabaseSourceRepository implements SourceRepositoryInterface {
       logger.info('Cleaning up Realtime subscription for sources');
       supabase.removeChannel(channel);
     };
+  }
+
+  /**
+   * Configura suscripción en tiempo real para cambios en fuentes de un notebook específico
+   */
+  subscribeToSourceChanges2(
+    notebookId: string,
+    onSourceChange: SourceChangeHandler
+  ): () => void {
+    return this.realtimeManager.subscribeToNotebookSources(notebookId, onSourceChange);
   }
 }

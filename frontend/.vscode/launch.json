@@ -1,0 +1,72 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Chrome - Debug Frontend",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*",
+        "webpack:///./*": "${workspaceFolder}/*",
+        "webpack:///./~/*": "${workspaceFolder}/node_modules/*"
+      },
+      "smartStep": true,
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "preLaunchTask": "npm: dev",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Attach to Chrome - Debug Frontend",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*",
+        "webpack:///./*": "${workspaceFolder}/*"
+      }
+    },
+    {
+      "name": "Debug Frontend (Edge)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*",
+        "webpack:///./*": "${workspaceFolder}/*"
+      },
+      "preLaunchTask": "npm: dev"
+    },
+    {
+      "name": "Debug with Node.js",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/vite",
+      "args": ["--mode", "development"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Launch Frontend Debug",
+      "configurations": [
+        "Launch Chrome - Debug Frontend"
+      ],
+      "stopAll": true
+    }
+  ]
+}

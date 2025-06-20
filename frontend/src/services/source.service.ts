@@ -163,7 +163,7 @@ export class SourceService {
     }
 
     if (!sourceData.title?.trim()) {
-      throw new Error('Title is required');
+      throw new Error('Title is required'); 
     }
 
     if (!sourceData.type) {
@@ -178,7 +178,7 @@ export class SourceService {
     // Validaciones específicas por tipo
     switch (sourceData.type) {
       case 'text':
-        if (!sourceData.file_size || sourceData.file_size <= 0) {
+        if (!sourceData.content?.trim()) {
           throw new Error('Content is required for text sources');
         }
         break;

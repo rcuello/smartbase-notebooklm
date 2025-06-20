@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "dev",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "label": "npm: dev",
+      "detail": "vite",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "source": "ts",
+        "fileLocation": [
+          "relative",
+          "${workspaceFolder}"
+        ],
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": "(.*?)"
+          },
+          "endsPattern": {
+            "regexp": "Local:.*?(https?://localhost:\\d+)"
+          }
+        }
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "group": "build",
+      "label": "npm: build",
+      "detail": "vite build",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "build:dev",
+      "group": "build",
+      "label": "npm: build:dev",
+      "detail": "vite build --mode development",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "preview",
+      "group": "build",
+      "label": "npm: preview",
+      "detail": "vite preview",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "group": "test",
+      "label": "npm: lint",
+      "detail": "eslint .",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    }
+  ]
+}

@@ -43,6 +43,53 @@ const AddSourcesDialog = ({ open, onOpenChange, notebookId }: AddSourcesDialogPr
     }
   }, [open]);
 
+  // Helper function to read file content
+  const readFileContent = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve(e.target?.result as string || '');
+      };
+      reader.onerror = (e) => {
+        reject(new Error('Failed to read file'));
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  // Helper function to determine file type and read content if needed
+  const processFileData = async (file: File) => {
+    const fileType = file.type.includes('pdf')
+      ? 'pdf'
+      : file.type.includes('audio')
+      ? 'audio'
+      : 'text';
+
+    let content = undefined;
+    
+    // For text files, read the content
+    if (fileType === 'text' || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
+      try {
+        content = await readFileContent(file);
+        logger.info('Read file content', {
+          fileName: file.name,
+          contentLength: content.length,
+        });
+      } catch (error) {
+        logger.error('Failed to read file content', {
+          fileName: file.name,
+          error: error,
+        });
+        // Don't throw - we'll still process the file through upload
+      }
+    }
+
+    return {
+      fileType: fileType as 'pdf' | 'text' | 'website' | 'youtube' | 'audio',
+      content,
+    };
+  };
+
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -72,13 +119,8 @@ const AddSourcesDialog = ({ open, onOpenChange, notebookId }: AddSourcesDialogPr
 
   const processFileAsync = async (file: File, sourceId: string, notebookId: string) => {
     try {
-      const fileType = file.type.includes('pdf')
-        ? 'pdf'
-        : file.type.includes('audio')
-        ? 'audio'
-        : 'text';
+      const { fileType } = await processFileData(file);
 
-      //console.log('Starting file processing for:', file.name, 'source:', sourceId);
       logger.info('Starting file processing for:', {
         fileName: file.name,
         fileType: fileType,
@@ -100,7 +142,6 @@ const AddSourcesDialog = ({ open, onOpenChange, notebookId }: AddSourcesDialogPr
         throw new Error('File upload failed - no file path returned');
       }
       
-      //console.log('File uploaded successfully:', filePath);
       logger.info('File uploaded successfully', {
         filePath: filePath,
       });
@@ -155,7 +196,7 @@ const AddSourcesDialog = ({ open, onOpenChange, notebookId }: AddSourcesDialogPr
 
   const handleFileUpload = async (files: File[]) => {
     if (!notebookId) {
-      toast({
+      toast({ 
         title: 'Error',
         description: 'No notebook selected',
         variant: 'destructive',
@@ -167,26 +208,31 @@ const AddSourcesDialog = ({ open, onOpenChange, notebookId }: AddSourcesDialogPr
     setIsLocallyProcessing(true);
 
     try {
-      // Step 1: Create the first source immediately (this will trigger generation if it's the first source)
+      // Step 1: Process the first file and create source
       const firstFile = files[0];
-      const firstFileType = firstFile.type.includes('pdf')
-        ? 'pdf'
-        : firstFile.type.includes('audio')
-        ? 'audio'
-        : 'text';
+      const { fileType: firstFileType, content: firstFileContent } = await processFileData(firstFile);
+      
       const firstSourceData = {
         notebookId,
         title: firstFile.name,
-        type: firstFileType as 'pdf' | 'text' | 'website' | 'youtube' | 'audio',
+        type: firstFileType,
         file_size: firstFile.size,
         processing_status: 'pending',
+        // Add content for text files
+        ...(firstFileContent && { content: firstFileContent }),
         metadata: {
           fileName: firstFile.name,
           fileType: firstFile.type,
+          // Add character count for text files
+          ...(firstFileContent && { characterCount: firstFileContent.length }),
         },
       };
 
-      console.log('Creating first source for:', firstFile.name);
+      console.log('Creating first source for:', firstFile.name, {
+        hasContent: !!firstFileContent,
+        contentLength: firstFileContent?.length || 0,
+      });
+      
       const firstSource = await addSourceAsync(firstSourceData);
 
       let remainingSources = [];
@@ -196,26 +242,35 @@ const AddSourcesDialog = ({ open, onOpenChange, notebookId }: AddSourcesDialogPr
         console.log('Adding 150ms delay before creating remaining sources...');
         await new Promise(resolve => setTimeout(resolve, 150));
 
-        // Create remaining sources
-        remainingSources = await Promise.all(
+        // Process and create remaining sources
+        const remainingSourcesData = await Promise.all(
           files.slice(1).map(async (file, index) => {
-            const fileType = file.type.includes('pdf')
-              ? 'pdf'
-              : file.type.includes('audio')
-              ? 'audio'
-              : 'text';
-            const sourceData = {
+            const { fileType, content } = await processFileData(file);
+            
+            return {
               notebookId,
               title: file.name,
-              type: fileType as 'pdf' | 'text' | 'website' | 'youtube' | 'audio',
+              type: fileType,
               file_size: file.size,
               processing_status: 'pending',
+              // Add content for text files
+              ...(content && { content }),
               metadata: {
                 fileName: file.name,
                 fileType: file.type,
+                // Add character count for text files
+                ...(content && { characterCount: content.length }),
               },
             };
-            console.log('Creating source for:', file.name);
+          })
+        );
+
+        remainingSources = await Promise.all(
+          remainingSourcesData.map(async (sourceData) => {
+            console.log('Creating source for:', sourceData.title, {
+              hasContent: !!sourceData.content,
+              contentLength: sourceData.content?.length || 0,
+            });
             return await addSourceAsync(sourceData);
           })
         );
