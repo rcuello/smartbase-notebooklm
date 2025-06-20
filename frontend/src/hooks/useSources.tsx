@@ -4,9 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotebookGeneration } from './useNotebookGeneration';
 import { SourceFactory } from '@/services/source.factory';
+import { NotebookFactory } from '@/services/notebook.factory';
 import { SourceService } from '@/services/source.service';
 import { SourceData, CreateSourceData } from '@/repositories/interfaces/source.repository.interface';
 import { logger } from '@/services/logger';
+import { NotebookService } from '@/services/notebook.service';
 
 /**
  * Hook personalizado para la gestión de fuentes
@@ -20,6 +22,11 @@ export const useSources = (notebookId?: string) => {
   // Instancia del servicio de fuentes creada mediante factory
   const sourceService: SourceService = useMemo(() => {
     return SourceFactory.createSourceService();
+  }, []);
+
+  // Instancia del servicio de notebooks creada mediante factory
+  const notebookService: NotebookService = useMemo(() => {
+    return NotebookFactory.createNotebookService();
   }, []);
 
   /**
@@ -142,11 +149,13 @@ export const useSources = (notebookId?: string) => {
       logger.info('Checking notebook generation status for first source...');
       
       // Verifica el estado de generación del notebook
-      const { data: notebook } = await supabase
+      /*const { data: notebook } = await supabase
         .from('notebooks')
         .select('generation_status')
         .eq('id', notebookId)
         .single();
+        */
+      const notebook = await notebookService.getNotebook(notebookId,user?.id);
       
       if (notebook?.generation_status === 'pending') {
         logger.info('Triggering notebook content generation...');

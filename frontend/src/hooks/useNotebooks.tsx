@@ -4,13 +4,13 @@ import { useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotebookFactory } from '@/services/notebook.factory';
-import { NotebookCreateData } from '@/repositories/interfaces/notebook.repository.interface';
+import { NotebookCreateData, NoteBookGenerationStatus } from '@/repositories/interfaces/notebook.repository.interface';
 import { logger } from '@/services/logger';
 import { useToast } from '@/hooks/use-toast';
 import { NotebookService } from '@/services/notebook.service';
 
 interface UseNotebooksOptions {
-  status?: 'pending' | 'processing' | 'completed' | 'error';
+  status?: NoteBookGenerationStatus;
   includeSources?: boolean;
   limit?: number;
   orderBy?: 'created_at' | 'updated_at' | 'title';
@@ -211,7 +211,7 @@ export const useNotebooks = (options: UseNotebooksOptions = {}) => {
   }, [refetch, toast]);
 
   // Get notebook count
-  const getNotebookCount = useCallback(async (statusFilter?: 'pending' | 'processing' | 'completed' | 'error') => {
+  const getNotebookCount = useCallback(async (statusFilter?: NoteBookGenerationStatus) => {
     if (!user?.id) return 0;
     
     try {

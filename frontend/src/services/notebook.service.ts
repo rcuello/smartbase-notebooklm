@@ -4,7 +4,8 @@ import {
   NotebookData, 
   NotebookCreateData,
   NotebookFilters,
-  NotebookQueryOptions
+  NotebookQueryOptions,
+  NoteBookGenerationStatus
 } from '@/repositories/interfaces/notebook.repository.interface';
 import { logger } from '@/services/logger';
 
@@ -25,7 +26,7 @@ export class NotebookService {
   async getUserNotebooks(
     userId: string, 
     options?: {
-      status?: 'pending' | 'processing' | 'completed' | 'error';
+      status?: NoteBookGenerationStatus;
       includeSources?: boolean;
       limit?: number;
       offset?: number;
@@ -187,7 +188,7 @@ export class NotebookService {
       title: data.title.trim(),
       description: data.description?.trim() || '',
       user_id: data.user_id,
-      generation_status: data.generation_status || 'pending',
+      generation_status: data.generation_status || NoteBookGenerationStatus.Pending,
     };
 
     logger.info('Creating notebook:', { title: cleanData.title, userId: cleanData.user_id });
@@ -239,7 +240,7 @@ export class NotebookService {
    */
   async getUserNotebookCount(
     userId: string, 
-    status?: 'pending' | 'processing' | 'completed' | 'error'
+    status?: NoteBookGenerationStatus
   ): Promise<number> {
     if (!userId?.trim()) {
       throw this.createError('User ID is required', 'INVALID_USER_ID');

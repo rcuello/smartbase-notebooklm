@@ -1,14 +1,21 @@
+export enum NoteBookGenerationStatus {
+  Pending = 'pending',
+  Processing = 'processing',
+  Completed = 'completed',
+  Error = 'error',
+}
+
 export interface NotebookUpdateData {
   title?: string;
   description?: string;
-  generation_status?: 'pending' | 'processing' | 'completed' | 'error';
+  generation_status?: NoteBookGenerationStatus;
 }
 
 export interface NotebookCreateData {
   title: string;
   description?: string;
   user_id: string;
-  generation_status?: 'pending' | 'processing' | 'completed' | 'error';
+  generation_status?: NoteBookGenerationStatus;
 }
 
 export interface NotebookData {
@@ -17,17 +24,17 @@ export interface NotebookData {
   description: string;
   audio_overview_url?: string;
   audio_url_expires_at?: string;
-  audio_overview_generation_status?: 'pending' | 'processing' | 'completed' | 'error';
+  audio_overview_generation_status?: NoteBookGenerationStatus;
   created_at: string;
   updated_at: string;
   user_id: string;
-  generation_status: 'pending' | 'processing' | 'completed' | 'error';
+  generation_status: NoteBookGenerationStatus;
   sources?: Array<{ count: number }>;
 }
 
 export interface NotebookFilters {
   userId?: string;
-  status?: 'pending' | 'processing' | 'completed' | 'error';
+  status?: NoteBookGenerationStatus;
   limit?: number;
   offset?: number;
 }
