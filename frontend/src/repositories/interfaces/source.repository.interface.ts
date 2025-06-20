@@ -1,5 +1,7 @@
+
+
 /**
- * Datos de entrada para crear una fuente
+ * Datos para crear una nueva fuente
  */
 export interface CreateSourceData {
   notebookId: string;
@@ -14,12 +16,16 @@ export interface CreateSourceData {
 }
 
 /**
- * Datos de entrada para actualizar una fuente
+ * Datos para actualizar una fuente existente
  */
 export interface UpdateSourceData {
   title?: string;
+  content?: string;
+  url?: string;
   file_path?: string;
+  file_size?: number;
   processing_status?: string;
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -39,6 +45,11 @@ export interface SourceData {
   created_at: string;
   updated_at: string;
 }
+
+/**
+ * Callback para manejar cambios en tiempo real de fuentes
+ */
+export type SourceChangeHandler = (eventType: string, sourceData: SourceData) => void;
 
 /**
  * Interfaz del repositorio de fuentes
@@ -71,7 +82,8 @@ export interface SourceRepositoryInterface {
   deleteSource(sourceId: string): Promise<void>;
 
   /**
-   * Configura suscripción en tiempo real para cambios en fuentes
+   * Suscribe a cambios en tiempo real de fuentes de un notebook
+   * @returns Función de limpieza para cancelar la suscripción
    */
   subscribeToSourceChanges(
     notebookId: string,

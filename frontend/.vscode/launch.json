@@ -19,7 +19,6 @@
         "node_modules/**"
       ],
       "preLaunchTask": "npm: dev",
-      "console": "integratedTerminal"
     },
     {
       "name": "Attach to Chrome - Debug Frontend",
