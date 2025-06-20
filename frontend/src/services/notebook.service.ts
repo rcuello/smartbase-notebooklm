@@ -221,7 +221,7 @@ export class NotebookService {
       throw this.createError('Notebook not found or access denied', 'NOT_FOUND');
     }
 
-    logger.info('Deleting notebook:', { id, userId });
+    logger.info('Deleting notebook wtf:', { id, userId });
     
     try {
       await this.notebookRepository.delete(id);

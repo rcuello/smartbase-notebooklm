@@ -5,22 +5,31 @@ import { NotebookUpdateData } from '@/repositories/interfaces/notebook.repositor
 import { logger } from '@/services/logger';
 import { useToast } from '@/hooks/use-toast';
 import { NotebookService } from '@/services/notebook.service';
+import { useAuth } from '@/contexts/AuthContext';
 
+/**
+ * Hook for updating notebooks with proper validation and cache management
+ * Uses dependency injection pattern to avoid vendor lock-in
+ */
 export const useNotebookUpdate = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   // Create service instance using factory pattern
   //const notebookService = NotebookFactory.createNotebookService();
   const notebookService: NotebookService = useMemo(() => {
-      return NotebookFactory.createNotebookService();
-    }, []);
+    return NotebookFactory.createNotebookService();
+  }, []);
 
   const updateNotebook = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: NotebookUpdateData }) => {
       logger.info('Hook: Initiating notebook update:', { id, updates });
-      
+
       try {
+        if (!id?.trim()) {
+          throw new Error('Notebook ID is required');
+        }
+
         const updatedNotebook = await notebookService.updateNotebook(id, updates);
         logger.info('Hook: Notebook update completed successfully:', updatedNotebook);
         return updatedNotebook;
@@ -29,29 +38,29 @@ export const useNotebookUpdate = () => {
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: data => {
       logger.info('Hook: Mutation success, invalidating queries for notebook:', data.id);
-      
+
       // Invalidate specific notebook query
       queryClient.invalidateQueries({ queryKey: ['notebook', data.id] });
-      
+
       // Invalidate notebooks list query
       queryClient.invalidateQueries({ queryKey: ['notebooks'] });
-      
+
       // Show success notification
       toast({
-        title: "Notebook updated",
-        description: "Your notebook has been updated successfully.",
+        title: 'Notebook updated',
+        description: 'Your notebook has been updated successfully.',
       });
     },
-    onError: (error) => {
+    onError: error => {
       logger.error('Hook: Mutation error occurred:', error);
-      
+
       // Show error notification
       toast({
-        title: "Update failed",
-        description: "Failed to update notebook. Please try again.",
-        variant: "destructive",
+        title: 'Update failed',
+        description: 'Failed to update notebook. Please try again.',
+        variant: 'destructive',
       });
     },
   });
