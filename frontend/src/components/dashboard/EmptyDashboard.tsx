@@ -28,7 +28,7 @@ const EmptyDashboard = () => {
   return <div className="text-center py-16">
       <div className="mb-12">
         <h2 className="text-3xl font-medium text-gray-900 mb-4">Create your first notebook</h2>
-        <p className="text-lg text-gray-600 max-w-2xl mx-auto">InsightsLM is an AI-powered research and writing assistant that works best with the sources you upload</p>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">SmartBaseLM is an AI-powered research and writing assistant that works best with the sources you upload</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-12">
