@@ -150,12 +150,6 @@ export const useSources = (notebookId?: string) => {
       logger.info('Checking notebook generation status for first source...');
       
       // Verifica el estado de generación del notebook
-      /*const { data: notebook } = await supabase
-        .from('notebooks')
-        .select('generation_status')
-        .eq('id', notebookId)
-        .single();
-        */
       const notebookStatus = await notebookService.getNoteBooksGenerationStatus(notebookId);
       
       if (notebookStatus && notebookStatus === NoteBookGenerationStatus.Pending) {

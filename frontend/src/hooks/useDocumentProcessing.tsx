@@ -1,37 +1,19 @@
-
+import { useMemo } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentProcessingFactory } from '@/services/document-processing.factory';
+import { DocumentProcessingRequest, IDocumentProcessingService } from '@/services/interfaces/document-processing.interface';
 
 export const useDocumentProcessing = () => {
-  const { toast } = useToast();
+  const { toast } = useToast();  
+
+  const documentProcessingService: IDocumentProcessingService = useMemo(() => {
+          return DocumentProcessingFactory.create();
+        }, []);
 
   const processDocument = useMutation({
-    mutationFn: async ({
-      sourceId,
-      filePath,
-      sourceType
-    }: {
-      sourceId: string;
-      filePath: string;
-      sourceType: string;
-    }) => {
-      console.log('Initiating document processing for:', { sourceId, filePath, sourceType });
-
-      const { data, error } = await supabase.functions.invoke('process-document', {
-        body: {
-          sourceId,
-          filePath,
-          sourceType
-        }
-      });
-
-      if (error) {
-        console.error('Document processing error:', error);
-        throw error;
-      }
-
-      return data;
+    mutationFn: async (request: DocumentProcessingRequest) => {
+      return await documentProcessingService.processDocument(request);
     },
     onSuccess: (data) => {
       console.log('Document processing initiated successfully:', data);
