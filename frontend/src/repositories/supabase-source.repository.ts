@@ -5,13 +5,40 @@ import {
   SourceData,
   CreateSourceData,
   UpdateSourceData,
-} from '@/repositories/interfaces/source.repository.interface';
+} from './interfaces/source.repository.interface';
 
 /**
  * Implementación del repositorio de fuentes usando Supabase
  * Encapsula toda la lógica específica de Supabase para operaciones con fuentes
  */
 export class SupabaseSourceRepository implements SourceRepositoryInterface {
+  /**
+   * Obtiene una fuente específica por su ID
+   */
+  async getSourceById(sourceId: string): Promise<SourceData> {
+    try {
+      const { data, error } = await supabase
+        .from('sources')
+        .select('*')
+        .eq('id', sourceId)
+        .single();
+
+      if (error) {
+        logger.error('Error fetching source by ID:', error);
+        throw new Error(`Failed to fetch source: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Source not found');
+      }
+
+      return data;
+    } catch (error) {
+      logger.error('Repository error in getSourceById:', error);
+      throw error;
+    }
+  }
+
   /**
    * Obtiene todas las fuentes de un notebook ordenadas por fecha de creación
    */
@@ -90,6 +117,28 @@ export class SupabaseSourceRepository implements SourceRepositoryInterface {
       return data;
     } catch (error) {
       logger.error('Repository error in updateSource:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina una fuente de la base de datos
+   */
+  async deleteSource(sourceId: string): Promise<void> {
+    try {
+      const { error } = await supabase
+        .from('sources')
+        .delete()
+        .eq('id', sourceId);
+
+      if (error) {
+        logger.error('Error deleting source:', error);
+        throw new Error(`Failed to delete source: ${error.message}`);
+      }
+
+      logger.info('Source deleted successfully from database:', sourceId);
+    } catch (error) {
+      logger.error('Repository error in deleteSource:', error);
       throw error;
     }
   }

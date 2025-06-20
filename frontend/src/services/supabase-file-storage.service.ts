@@ -2,6 +2,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { logger } from '@/services/logger';
 import { IFileStorageService } from '@/services/interfaces/fileStorage.interface';
 
+/**
+ * Implementación del servicio de almacenamiento de archivos usando Supabase Storage
+ * Encapsula toda la lógica específica de Supabase para operaciones con archivos
+ */
 export class SupabaseFileStorageService implements IFileStorageService {
   private bucketName: string;
 
@@ -48,6 +52,9 @@ export class SupabaseFileStorageService implements IFileStorageService {
     return data.signedUrl;
   }
 
+  /**
+   * Elimina un archivo del almacenamiento de Supabase
+   */
   async deleteFile(path: string): Promise<void> {
     logger.debug('Deleting file', { path });
 
@@ -61,5 +68,49 @@ export class SupabaseFileStorageService implements IFileStorageService {
     }
 
     logger.info('File deleted successfully', { path });
+  }
+
+  /**
+   * Elimina múltiples archivos del almacenamiento de Supabase
+   */
+  async deleteFiles(filePaths: string[]): Promise<void> {
+    try {
+      const { error } = await supabase.storage
+        .from(this.bucketName)
+        .remove(filePaths);
+
+      if (error) {
+        logger.error('Error deleting files from Supabase storage:', error);
+        throw new Error(`Failed to delete files: ${error.message}`);
+      }
+
+      logger.info('Files deleted successfully from Supabase storage:', filePaths.length);
+    } catch (error) {
+      logger.error('Storage service error in deleteFiles:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifica si un archivo existe en el almacenamiento de Supabase
+   */
+  async fileExists(filePath: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.storage
+        .from(this.bucketName)
+        .list(filePath.substring(0, filePath.lastIndexOf('/')), {
+          search: filePath.substring(filePath.lastIndexOf('/') + 1)
+        });
+
+      if (error) {
+        logger.error('Error checking file existence in Supabase storage:', error);
+        return false;
+      }
+
+      return data && data.length > 0;
+    } catch (error) {
+      logger.error('Storage service error in fileExists:', error);
+      return false;
+    }
   }
 }

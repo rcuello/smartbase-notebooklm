@@ -1,17 +1,37 @@
 import { logger } from '@/services/logger';
-import { 
+import {
   SourceRepositoryInterface,
   SourceData,
   CreateSourceData,
   UpdateSourceData,
 } from '@/repositories/interfaces/source.repository.interface';
+import { IFileStorageService } from './interfaces/fileStorage.interface';
 
 /**
  * Servicio de fuentes que encapsula la lógica de negocio
  * Actúa como capa intermedia entre el hook y el repositorio
  */
 export class SourceService {
-  constructor(private sourceRepository: SourceRepositoryInterface) {}
+  constructor(
+    private sourceRepository: SourceRepositoryInterface,
+    private fileStorageService?: IFileStorageService
+  ) {}
+
+  /**
+   * Obtiene una fuente específica por su ID
+   */
+  async getSourceById(sourceId: string): Promise<SourceData> {
+    if (!sourceId) {
+      throw new Error('Source ID is required');
+    }
+
+    try {
+      return await this.sourceRepository.getSourceById(sourceId);
+    } catch (error) {
+      logger.error('Service error in getSourceById:', error);
+      throw error;
+    }
+  }
 
   /**
    * Obtiene todas las fuentes de un notebook
@@ -69,6 +89,45 @@ export class SourceService {
   }
 
   /**
+   * Elimina una fuente con validaciones de negocio y manejo de archivos
+   */
+  async deleteSource(sourceId: string): Promise<SourceData> {
+    if (!sourceId) {
+      throw new Error('Source ID is required');
+    }
+
+    try {
+      // Primero obtiene los detalles de la fuente antes de eliminarla
+      const sourceToDelete = await this.sourceRepository.getSourceById(sourceId);
+      logger.info('Found source to delete:', sourceToDelete.title, 'with file_path:', sourceToDelete.file_path);
+
+      // Elimina el archivo del almacenamiento si existe y hay servicio de archivos
+      if (sourceToDelete.file_path && this.fileStorageService) {
+        try {
+          logger.info('Deleting file from storage:', sourceToDelete.file_path);
+          await this.fileStorageService.deleteFile(sourceToDelete.file_path);
+          logger.info('File deleted successfully from storage');
+        } catch (storageError) {
+          logger.error('Error deleting file from storage:', storageError);
+          // No lanza error aquí - aún queremos eliminar el registro de la base de datos
+          // aunque el archivo ya no exista
+        }
+      } else {
+        logger.info('No file to delete from storage (URL-based source or no file_path)');
+      }
+
+      // Elimina la fuente del repositorio
+      await this.sourceRepository.deleteSource(sourceId);
+      
+      logger.info('Source deleted successfully via service:', sourceId);
+      return sourceToDelete;
+    } catch (error) {
+      logger.error('Service error in deleteSource:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Configura suscripción en tiempo real para cambios en fuentes
    */
   subscribeToSourceChanges(
@@ -119,7 +178,7 @@ export class SourceService {
     // Validaciones específicas por tipo
     switch (sourceData.type) {
       case 'text':
-        if (!sourceData.content?.trim()) {
+        if (!sourceData.file_size || sourceData.file_size <= 0) {
           throw new Error('Content is required for text sources');
         }
         break;

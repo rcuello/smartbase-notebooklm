@@ -86,6 +86,7 @@ export const useSources = (notebookId?: string) => {
   const addSource = useMutation({
     mutationFn: async (sourceData: CreateSourceData) => {
       if (!user) throw new Error('User not authenticated');
+      
       return sourceService.createSource(sourceData);
     },
     onSuccess: async (newSource: SourceData) => {

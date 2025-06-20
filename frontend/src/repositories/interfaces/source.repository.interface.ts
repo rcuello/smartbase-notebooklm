@@ -51,6 +51,11 @@ export interface SourceRepositoryInterface {
   getSourcesByNotebook(notebookId: string): Promise<SourceData[]>;
 
   /**
+   * Obtiene una fuente por su ID
+   */
+  getSourceById(sourceId: string): Promise<SourceData>;
+
+  /**
    * Crea una nueva fuente
    */
   createSource(sourceData: CreateSourceData): Promise<SourceData>;
@@ -59,6 +64,11 @@ export interface SourceRepositoryInterface {
    * Actualiza una fuente existente
    */
   updateSource(sourceId: string, updates: UpdateSourceData): Promise<SourceData>;
+
+  /**
+   * Elimina una fuente
+   */
+  deleteSource(sourceId: string): Promise<void>;
 
   /**
    * Configura suscripción en tiempo real para cambios en fuentes
