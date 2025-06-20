@@ -89,4 +89,12 @@ export interface INotebookRepository {
    * @returns Promise with notebook data or null if not found
    */
   findById(id: string, options?: NotebookQueryOptions): Promise<NotebookData | null>;
+
+  /**
+   * Retrieves the generation status of a specific notebook
+   * @param id - The unique identifier of the notebook
+   * @returns Promise resolving to generation status enum or null if not found
+   * @throws {Error} Database connection or query errors
+   */
+  findGenerationStatusById (id: string): Promise<NoteBookGenerationStatus | null>;
 }

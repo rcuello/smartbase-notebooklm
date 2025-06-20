@@ -9,6 +9,7 @@ import { SourceService } from '@/services/source.service';
 import { SourceData, CreateSourceData } from '@/repositories/interfaces/source.repository.interface';
 import { logger } from '@/services/logger';
 import { NotebookService } from '@/services/notebook.service';
+import { NoteBookGenerationStatus } from '@/repositories/interfaces/notebook.repository.interface';
 
 /**
  * Hook personalizado para la gestión de fuentes
@@ -155,9 +156,9 @@ export const useSources = (notebookId?: string) => {
         .eq('id', notebookId)
         .single();
         */
-      const notebook = await notebookService.getNotebook(notebookId,user?.id);
+      const notebookStatus = await notebookService.getNoteBooksGenerationStatus(notebookId);
       
-      if (notebook?.generation_status === 'pending') {
+      if (notebookStatus && notebookStatus === NoteBookGenerationStatus.Pending) {
         logger.info('Triggering notebook content generation...');
         
         // Verifica si la fuente puede disparar generación

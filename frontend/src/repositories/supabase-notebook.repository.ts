@@ -6,6 +6,7 @@ import {
   NotebookCreateData,
   NotebookFilters,
   NotebookQueryOptions,
+  NoteBookGenerationStatus,
 } from '@/repositories/interfaces/notebook.repository.interface';
 import { logger } from '@/services/logger';
 
@@ -55,7 +56,8 @@ export class SupabaseNotebookRepository implements INotebookRepository {
         const castedNotebooks: NotebookData[] = (notebooks || []).map(notebook => ({
           ...notebook,
           generation_status: notebook.generation_status as NotebookData['generation_status'],
-          audio_overview_generation_status: notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
+          audio_overview_generation_status:
+            notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
         }));
 
         const notebooksWithCounts = await this.enrichWithSourceCounts(castedNotebooks);
@@ -67,7 +69,8 @@ export class SupabaseNotebookRepository implements INotebookRepository {
       return (notebooks || []).map(notebook => ({
         ...notebook,
         generation_status: notebook.generation_status as NotebookData['generation_status'],
-        audio_overview_generation_status: notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
+        audio_overview_generation_status:
+          notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
       }));
     } catch (error) {
       logger.error('Failed to fetch notebooks:', error);
@@ -100,7 +103,8 @@ export class SupabaseNotebookRepository implements INotebookRepository {
         const castedNotebook: NotebookData = {
           ...notebook,
           generation_status: notebook.generation_status as NotebookData['generation_status'],
-          audio_overview_generation_status: notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
+          audio_overview_generation_status:
+            notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
         };
 
         const [enrichedNotebook] = await this.enrichWithSourceCounts([castedNotebook]);
@@ -117,10 +121,38 @@ export class SupabaseNotebookRepository implements INotebookRepository {
       return {
         ...notebook,
         generation_status: notebook.generation_status as NotebookData['generation_status'],
-        audio_overview_generation_status: notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
+        audio_overview_generation_status:
+          notebook.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
       };
     } catch (error) {
       logger.error('Failed to fetch notebook by ID:', { id, error });
+      throw error;
+    }
+  }
+
+  async findGenerationStatusById (id: string): Promise<NoteBookGenerationStatus | null> {
+    logger.info('Fetching generation_status for notebook:', id);
+    try {
+      const { data, error } = await supabase
+        .from('notebooks')
+        .select('generation_status')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          logger.info('Notebook not found for generation_status:', id);
+          return null;
+        }
+
+        logger.error('Error fetching generation_status:', { id, error });
+        throw error;
+      }
+
+      return data.generation_status as NoteBookGenerationStatus;
+      
+    } catch (error) {
+      logger.error('Failed to fetch generation_status:', { id, error });
       throw error;
     }
   }
@@ -146,7 +178,9 @@ export class SupabaseNotebookRepository implements INotebookRepository {
       return {
         ...data,
         generation_status: data.generation_status as NotebookData['generation_status'],
-        audio_overview_generation_status: data.audio_overview_generation_status as NotebookData['audio_overview_generation_status'] ?? null,
+        audio_overview_generation_status:
+          (data.audio_overview_generation_status as NotebookData['audio_overview_generation_status']) ??
+          null,
       };
     } catch (error) {
       logger.error('Failed to update notebook:', { id, error });
@@ -177,7 +211,8 @@ export class SupabaseNotebookRepository implements INotebookRepository {
       return {
         ...createdData,
         generation_status: createdData.generation_status as NotebookData['generation_status'],
-        audio_overview_generation_status: createdData.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
+        audio_overview_generation_status:
+          createdData.audio_overview_generation_status as NotebookData['audio_overview_generation_status'],
       };
     } catch (error) {
       logger.error('Failed to create notebook:', { data, error });

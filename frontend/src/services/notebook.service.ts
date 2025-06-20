@@ -1,11 +1,11 @@
-import { 
-  INotebookRepository, 
-  NotebookUpdateData, 
-  NotebookData, 
+import {
+  INotebookRepository,
+  NotebookUpdateData,
+  NotebookData,
   NotebookCreateData,
   NotebookFilters,
   NotebookQueryOptions,
-  NoteBookGenerationStatus
+  NoteBookGenerationStatus,
 } from '@/repositories/interfaces/notebook.repository.interface';
 import { logger } from '@/services/logger';
 
@@ -24,7 +24,7 @@ export class NotebookService {
    * @returns Promise with notebooks array
    */
   async getUserNotebooks(
-    userId: string, 
+    userId: string,
     options?: {
       status?: NoteBookGenerationStatus;
       includeSources?: boolean;
@@ -52,7 +52,7 @@ export class NotebookService {
     };
 
     logger.info('Fetching user notebooks:', { userId, filters, queryOptions });
-    
+
     try {
       return await this.notebookRepository.findMany(filters, queryOptions);
     } catch (error) {
@@ -62,13 +62,39 @@ export class NotebookService {
   }
 
   /**
+   * Retrieves the generation status of a notebook
+   * @param id - Notebook ID
+   * @returns Promise with generation status or null if not found
+   */
+  async getNoteBooksGenerationStatus(id: string): Promise<NoteBookGenerationStatus | null> {
+    if (!id?.trim()) {
+      throw this.createError('Notebook ID is required', 'INVALID_NOTEBOOK_ID');
+    }
+
+    logger.info('Fetching notebook generation status:', { id });
+
+    try {
+      const notebookStatus: NoteBookGenerationStatus =
+        await this.notebookRepository.findGenerationStatusById(id);
+
+      return notebookStatus;
+    } catch (error) {
+      logger.error('Failed to fetch notebook:', { id, error });
+      throw this.createError('Failed to fetch notebook', 'FETCH_FAILED', error);
+    }
+  }
+  /**
    * Fetches a single notebook by ID with user validation
    * @param id - Notebook ID
    * @param userId - User ID for authorization
    * @param includeSources - Whether to include source counts
    * @returns Promise with notebook data or null if not found/unauthorized
    */
-  async getNotebook(id: string, userId: string, includeSources = true): Promise<NotebookData | null> {
+  async getNotebook(
+    id: string,
+    userId: string,
+    includeSources = true
+  ): Promise<NotebookData | null> {
     if (!id?.trim()) {
       throw this.createError('Notebook ID is required', 'INVALID_NOTEBOOK_ID');
     }
@@ -78,13 +104,17 @@ export class NotebookService {
     }
 
     logger.info('Fetching notebook:', { id, userId, includeSources });
-    
+
     try {
       const notebook = await this.notebookRepository.findById(id, { includeSources });
-      
+
       // Check authorization
       if (notebook && notebook.user_id !== userId) {
-        logger.warn('Unauthorized notebook access attempt:', { id, userId, ownerId: notebook.user_id });
+        logger.warn('Unauthorized notebook access attempt:', {
+          id,
+          userId,
+          ownerId: notebook.user_id,
+        });
         return null; // Don't expose existence of notebook to unauthorized users
       }
 
@@ -136,7 +166,7 @@ export class NotebookService {
 
   /**
    * Updates a notebook with validation and business logic
-  * @param id - Notebook ID to update
+   * @param id - Notebook ID to update
    * @param updates - Data to update
    * @returns Promise with updated notebook data
    */
@@ -160,7 +190,7 @@ export class NotebookService {
     }
 
     logger.info('Processing notebook update:', { id, updates: cleanUpdates });
-    
+
     try {
       return await this.notebookRepository.update(id, cleanUpdates);
     } catch (error) {
@@ -192,7 +222,7 @@ export class NotebookService {
     };
 
     logger.info('Creating notebook:', { title: cleanData.title, userId: cleanData.user_id });
-    
+
     try {
       return await this.notebookRepository.create(cleanData);
     } catch (error) {
@@ -223,7 +253,7 @@ export class NotebookService {
     }
 
     logger.info('Deleting notebook wtf:', { id, userId });
-    
+
     try {
       await this.notebookRepository.delete(id);
     } catch (error) {
@@ -238,10 +268,7 @@ export class NotebookService {
    * @param status - Optional status filter
    * @returns Promise with count number
    */
-  async getUserNotebookCount(
-    userId: string, 
-    status?: NoteBookGenerationStatus
-  ): Promise<number> {
+  async getUserNotebookCount(userId: string, status?: NoteBookGenerationStatus): Promise<number> {
     if (!userId?.trim()) {
       throw this.createError('User ID is required', 'INVALID_USER_ID');
     }
@@ -249,7 +276,7 @@ export class NotebookService {
     const filters: NotebookFilters = { userId, status };
 
     logger.info('Counting user notebooks:', { userId, status });
-    
+
     try {
       return await this.notebookRepository.count(filters);
     } catch (error) {
@@ -265,7 +292,7 @@ export class NotebookService {
    */
   private sanitizeUpdateData(updates: NotebookUpdateData): NotebookUpdateData {
     const cleanUpdates: NotebookUpdateData = {};
-    
+
     if (updates.title !== undefined) {
       const trimmedTitle = updates.title.trim();
       if (!trimmedTitle) {
@@ -273,7 +300,7 @@ export class NotebookService {
       }
       cleanUpdates.title = trimmedTitle;
     }
-    
+
     if (updates.description !== undefined) {
       cleanUpdates.description = updates.description.trim();
     }
@@ -296,7 +323,11 @@ export class NotebookService {
    * @param originalError - Original error if any
    * @returns NotebookServiceError
    */
-  private createError(message: string, code: string, originalError?: unknown): NotebookServiceError {
+  private createError(
+    message: string,
+    code: string,
+    originalError?: unknown
+  ): NotebookServiceError {
     const error = new Error(message) as NotebookServiceError;
     error.code = code;
     error.details = originalError;
